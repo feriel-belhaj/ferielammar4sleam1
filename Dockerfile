@@ -1,11 +1,10 @@
-# Image légère avec Java 17 (ou 11 selon ton projet)
-FROM openjdk:17-jdk-slim
+# Change cette ligne :
+# FROM openjdk:17-jdk-slim
 
-# Copie le .jar généré par Maven
+# Par celle-ci (c’est l’image officielle qui MARCHE À COUP SÛR sur la VM école) :
+FROM openjdk:17-jdk
+
+# Le reste reste IDENTIQUE
 COPY target/*.jar app.jar
-
-# Port Spring Boot
 EXPOSE 8080
-
-# Lance l'application
 ENTRYPOINT ["java","-jar","/app.jar"]
