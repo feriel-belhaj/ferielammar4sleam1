@@ -1,10 +1,9 @@
-# Change cette ligne :
-# FROM openjdk:17-jdk-slim
+FROM alpine:latest
 
-# Par celle-ci (c’est l’image officielle qui MARCHE À COUP SÛR sur la VM école) :
-FROM openjdk:17-jdk
+RUN apk update && apk add openjdk11
 
-# Le reste reste IDENTIQUE
 COPY target/*.jar app.jar
+
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app.jar"]
+
+CMD ["java", "-jar", "/app.jar"]
