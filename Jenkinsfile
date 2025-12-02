@@ -4,11 +4,10 @@ pipeline {
     environment {
         DOCKERHUB_REPO        = 'feriel014/student-management'
         IMAGE_TAG             = "${BUILD_NUMBER}"
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
-        
-        // Variables SonarQube
-        SONAR_PROJECT_KEY     = 'sqp_b7ab3a4ecca0c979cad5abe0f9bd7704ededc48c'          // clé unique
-        SONAR_PROJECT_NAME    = 'project3212'        // nom joli affiché
+
+        // SonarQube – on utilise exactement ce que tu as déjà
+        SONAR_PROJECT_KEY     = 'student-management'          // déjà créé dans SonarQube
+        SONAR_PROJECT_NAME    = 'Gestion des Étudiants'        // nom joli que tu veux voir
         SONAR_HOST_URL        = 'http://localhost:9000'
     }
 
@@ -33,17 +32,16 @@ pipeline {
             }
         }
 
-        // STAGE SONARQUBE CORRIGÉ ET PARFAIT
         stage('SonarQube Analysis') {
             steps {
-                withCredentials([string(credentialsId: 'SONAR_AUTH_TOKEN', variable: 'TOKEN')]) {
+                // Tu as déjà le token dans le credential ID = projet (c’est bizarre mais c’est comme ça chez toi)
+                withCredentials([string(credentialsId: 'projet', variable: 'SONAR_TOKEN)]) {
                     sh """
                         mvn sonar:sonar \
                           -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                           -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
                           -Dsonar.host.url=${SONAR_HOST_URL} \
-                         
-                          -Dsonar.login=${TOKEN} \
+                          -Dsonar.login=${SONAR_TOKEN} \
                           -Dsonar.sources=src \
                           -Dsonar.java.binaries=target/classes \
                           -Dsonar.sourceEncoding=UTF-8
@@ -71,11 +69,15 @@ pipeline {
 
         stage('Push Docker Hub') {
             steps {
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-                sh """
-                    docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                    docker push ${DOCKERHUB_REPO}:latest
-                """
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-feriel014', 
+                                                 usernameVariable: 'DOCKER_USER', 
+                                                 passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh """
+                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                        docker push ${DOCKERHUB_REPO}:latest
+                    """
+                }
             }
         }
     }
@@ -86,11 +88,12 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
-            echo "Analyse SonarQube → http://localhost:9000/dashboard?id=student-management"
+            echo "Build #${BUILD_NUMBER} terminé avec succès !"
+            echo "Image Docker → https://hub.docker.com/r/${DOCKERHUB_REPO}/tags"
+            echo "SonarQube → http://localhost:9000/dashboard?id=${SONAR_PROJECT_KEY}"
         }
         failure {
-            echo "Échec du pipeline – vérifie les logs"
+            echo "Échec du build #${BUILD_NUMBER} – regarde les logs !"
         }
     }
 }
