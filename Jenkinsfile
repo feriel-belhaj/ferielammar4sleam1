@@ -57,4 +57,32 @@ pipeline {
             echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
         }
     }
+           
+        // stage sonarQube
+        
+        stage('SonarQube Analysis') {
+            steps {
+                // On utilise exactement la commande que la prof a donnée dans l’énoncé
+                sh 'mvn clean verify sonar:sonar'
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                // Si le Quality Gate est rouge → le build échoue (c’est ce qu’elle veut voir)
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout || true'
+        }
+        success {
+            echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
+            echo "Analyse SonarQube terminée → http://localhost:9000"
+        }
 }
