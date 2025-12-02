@@ -34,26 +34,23 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                withCredentials([string(credentialsId: 'projet', variable: 'TOKEN')]) {
-                    sh """
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=projet \
-                            -Dsonar.host.url=http://localhost:9000 \
-                            -Dsonar.login=\$TOKEN
-                    """
-                }
-            }
+      stage('SonarQube Analysis') {
+    withSonarQubeEnv('Nom de ta config SonarQube dans Jenkins') {   // ← important !
+        withCredentials([string(credentialsId: 'TOKEN', variable: 'SONAR_TOKEN')]) {
+            sh '''
+                mvn sonar:sonar \
+                    -Dsonar.projectKey=projet \
+                    -Dsonar.token=${SONAR_TOKEN}
+            '''
         }
+    }
+}
 
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
+       stage('Quality Gate') {
+    timeout(time: 5, unit: 'MINUTES') {
+        waitForQualityGate abortPipeline: true
+    }
+}
 
         stage('Build Docker Image') {
             steps {
