@@ -2,37 +2,37 @@ pipeline {
     agent any
 
     environment {
-        // Maven est déjà dans le PATH sur ton Jenkins, pas besoin de M2_HOME
         DOCKERHUB_REPO        = 'feriel014/student-management'
         IMAGE_TAG             = "${BUILD_NUMBER}"
-        DOCKERHUB_CREDENTIALS = 'dockerhub-feriel014'   // ton credential Docker Hub
+        DOCKERHUB_CREDENTIALS = 'dockerhub-feriel014'  // ton credential Docker Hub
     }
 
     stages {
         stage('Checkout') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
-                git credentialsId: 'github-feriel',  // ton token GitHub déjà créé
+                git credentialsId: 'github-feriel',  // ton token GitHub
                     url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git',
                     branch: 'main'
             }
         }
 
-        stage('Test') {
+        stage('Build & Test') {
             steps {
-                sh 'mvn test -Dmaven.test.skip=true'
+                // Compiler et exécuter les tests
+                sh 'mvn clean test'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withCredentials([string(credentialsId: 'projet', variable: 'TOKEN')]) {   // ton token SonarQube
+                withCredentials([string(credentialsId: 'jenkins-student-management', variable: 'TOKEN')]) {
                     sh """
                         mvn sonar:sonar \
                             -Dsonar.projectKey=student-management \
                             -Dsonar.projectName="Gestion des Étudiants" \
-                            -Dsonar.host.url=http://localhost:9000 \
-                            -Dsonar.token=\$TOKEN \
+                            -Dsonar.host.url=http://<IP_SONAR>:9000 \
+                            -Dsonar.token=$TOKEN \
                             -Dsonar.sources=src/main/java \
                             -Dsonar.tests=src/test/java \
                             -Dsonar.java.binaries=target/classes \
@@ -52,7 +52,7 @@ pipeline {
 
         stage('Package') {
             steps {
-                sh 'mvn clean package -Dmaven.test.skip=true'
+                sh 'mvn clean package'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
@@ -87,9 +87,9 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "FÉLICITATIONS FERIEL ! Tout est bon !!"
+            echo " FÉLICITATIONS ! Tout est bon !!"
             echo "Docker : https://hub.docker.com/r/${DOCKERHUB_REPO}"
-            echo "SonarQube : http://localhost:9000/dashboard?id=student-management"
+            echo "SonarQube : http://<IP_SONAR>:9000/dashboard?id=student-management"
         }
         failure {
             echo "Oups, il y a eu un souci. Regarde les logs !"
