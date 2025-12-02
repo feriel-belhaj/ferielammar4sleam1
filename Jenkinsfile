@@ -2,10 +2,9 @@ pipeline {
     agent any
 
     environment {
-        // Change ici avec TON pseudo Docker Hub
         DOCKERHUB_REPO = 'feriel014/student-management'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')  // à créer dans Jenkins
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
     }
 
     stages {
@@ -47,29 +46,17 @@ pipeline {
                 """
             }
         }
-    }
 
-    post {
-        always {
-            sh 'docker logout || true'
-        }
-        success {
-            echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
-        }
-    }
-           
-        // stage sonarQube
-        
+        // Étape 2 demandée par la prof
         stage('SonarQube Analysis') {
             steps {
-                // On utilise exactement la commande que la prof a donnée dans l’énoncé
                 sh 'mvn clean verify sonar:sonar'
             }
         }
 
+        // Étape 2 (suite) – Quality Gate
         stage('Quality Gate') {
             steps {
-                // Si le Quality Gate est rouge → le build échoue (c’est ce qu’elle veut voir)
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
@@ -85,4 +72,8 @@ pipeline {
             echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
             echo "Analyse SonarQube terminée → http://localhost:9000"
         }
+        failure {
+            echo "Build échoué – regarde les logs ou le Quality Gate SonarQube"
+        }
+    }
 }
