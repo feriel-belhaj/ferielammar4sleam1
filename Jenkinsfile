@@ -10,10 +10,12 @@ pipeline {
     }
 
     stages {
-        stage('Récupération Git') {
+                stage('Récupération Git') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
-                git url: 'https://github.com/feriel-bhaj/ferielammar4sleam1.git', branch: 'main'
+                git credentialsId: 'github-feriel',
+                    url: 'https://github.com/feriel-bhaj/ferielammar4sleam1.git',
+                    branch: 'main'
             }
         }
 
