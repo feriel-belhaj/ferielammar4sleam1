@@ -14,7 +14,7 @@ pipeline {
             steps {
                 echo 'Récupération du code depuis GitHub...'
                 git credentialsId: 'github-feriel',
-                    url: 'https://github.com/feriel-bhaj/ferielammar4sleam1.git',
+                    url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git',
                     branch: 'main'
             }
         }
