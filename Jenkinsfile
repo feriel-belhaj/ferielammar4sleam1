@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    options {
+        skipDefaultCheckout(true)   // EMPÊCHE Jenkins d'utiliser le mauvais credential
+    }
 
     environment {
         DOCKERHUB_REPO = 'feriel014/student-management'
@@ -10,8 +13,11 @@ pipeline {
     stages {
         stage('Récupération Git') {
             steps {
-                echo 'Récupération du code depuis GitHub...'
-                git url: 'https://github.com/feriel-bhaj/ferielammar4sleam1.git', branch: 'main'
+                echo 'Récupération du code depuis GitHub (repo public)...'
+                checkout scmGit(
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git']]
+                )
             }
         }
 
@@ -28,14 +34,12 @@ pipeline {
             }
         }
 
-        // STAGE SONARQUBE EXACTEMENT COMME TU VEUX (et comme l’exemple)
         stage('SonarQube Analysis') {
             steps {
-                // Inject the SONAR_AUTH_TOKEN credential from Jenkins
-                withCredentials([string(credentialsId: 'SONAR_AUTH_TOKEN', variable: 'TOKEN')]) {
+                withCredentials([string(credentialsId: 'projet', variable: 'TOKEN')]) {
                     sh """
                         mvn sonar:sonar \
-                            -Dsonar.projectKey=projet 
+                            -Dsonar.projectKey=projet \
                             -Dsonar.host.url=http://localhost:9000 \
                             -Dsonar.login=\$TOKEN
                     """
@@ -72,12 +76,7 @@ pipeline {
     }
 
     post {
-        always {
-            sh 'docker logout || true'
-        }
-        success {
-            echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
-            echo "Analyse SonarQube → http://localhost:9000"
-        }
+        always { sh 'docker logout || true' }
+        success { echo "Tout est bon → http://localhost:9000" }
     }
 }
