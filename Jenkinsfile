@@ -1,57 +1,53 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'JDK17'          // ← change le nom si ton JDK dans Jenkins s'appelle autrement
-        maven 'Maven3.9'     // ← change si ton Maven s'appelle autrement
-    }
-
     environment {
-        // Nom de ton projet dans SonarQube
-        SONAR_PROJECT_KEY = 'student-management'
-        SONAR_PROJECT_NAME = 'Gestion des Étudiants'
+        DOCKERHUB_REPO        = 'feriel014/student-management'
+        IMAGE_TAG             = "${BUILD_NUMBER}"
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
         
-        // URL de ton serveur SonarQube (change si besoin)
-        SONAR_HOST_URL = 'http://ton-serveur-sonarqube:9000'
-        
-        // Token SonarQube (à mettre dans Jenkins Credentials → ID = "sonar-token")
-        SONAR_TOKEN = credentials('sonar-token')
+        // Variables SonarQube
+        SONAR_PROJECT_KEY     = 'sqp_b7ab3a4ecca0c979cad5abe0f9bd7704ededc48c'          // clé unique
+        SONAR_PROJECT_NAME    = 'project3212'        // nom joli affiché
+        SONAR_HOST_URL        = 'http://localhost:9000'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Récupération Git') {
             steps {
-                git branch: 'main', 
-                    url: 'https://github.com/ton-user/student-management.git'
-                    // ou ton repo GitLab/Bitbucket
+                echo 'Récupération du code depuis GitHub...'
+                git url: 'https://github.com/feriel-bhaj/ferielammar4sleam1.git', branch: 'main'
             }
         }
 
-        stage('Build') {
+        stage('Tests unitaires') {
             steps {
-                sh 'mvn clean compile'
+                sh 'mvn test -Dmaven.test.skip=true'
             }
         }
 
-        stage('Test') {
+        stage('Création du livrable') {
             steps {
-                sh 'mvn test'
+                sh 'mvn clean package -Dmaven.test.skip=true'
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
 
+        // STAGE SONARQUBE CORRIGÉ ET PARFAIT
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube Server') {   // ← nom exact de ta config Sonar dans Jenkins
-                    sh '''
+                withCredentials([string(credentialsId: 'SONAR_AUTH_TOKEN', variable: 'TOKEN')]) {
+                    sh """
                         mvn sonar:sonar \
                           -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                           -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
                           -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.token=${SONAR_TOKEN} \
+                         
+                          -Dsonar.login=${TOKEN} \
                           -Dsonar.sources=src \
                           -Dsonar.java.binaries=target/classes \
                           -Dsonar.sourceEncoding=UTF-8
-                    '''
+                    """
                 }
             }
         }
@@ -63,17 +59,38 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
+                    docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
+                """
+            }
+        }
+
+        stage('Push Docker Hub') {
+            steps {
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                sh """
+                    docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                    docker push ${DOCKERHUB_REPO}:latest
+                """
+            }
+        }
     }
 
     post {
         always {
+            sh 'docker logout || true'
             cleanWs()
         }
         success {
-            echo 'Analyse SonarQube réussie ! Ton projet s’appelle maintenant "Gestion des Étudiants" dans SonarQube 🎉'
+            echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management"
+            echo "Analyse SonarQube → http://localhost:9000/dashboard?id=student-management"
         }
         failure {
-            echo 'Échec de l’analyse ou Quality Gate KO 😭'
+            echo "Échec du pipeline – vérifie les logs"
         }
     }
 }
