@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_REPO        = 'feriel014/student-management'
-        IMAGE_TAG             = "${BUILD_NUMBER}"
+        DOCKERHUB_REPO     = 'feriel014/student-management'
+        IMAGE_TAG          = "${BUILD_NUMBER}"
 
-        // SonarQube – on utilise exactement ce que tu as déjà
-        SONAR_PROJECT_KEY     = 'student-management'          // déjà créé dans SonarQube
-        SONAR_PROJECT_NAME    = 'Gestion des Étudiants'        // nom joli que tu veux voir
-        SONAR_HOST_URL        = 'http://localhost:9000'
+        SONAR_PROJECT_KEY  = 'student-management'
+        SONAR_PROJECT_NAME = 'Gestion des Étudiants'
+        SONAR_HOST_URL     = 'http://localhost:9000'
     }
 
     stages {
@@ -34,8 +33,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                // Tu as déjà le token dans le credential ID = projet (c’est bizarre mais c’est comme ça chez toi)
-                withCredentials([string(credentialsId: 'projet', variable: 'SONAR_TOKEN)]) {
+                withCredentials([string(credentialsId: 'projet', variable: 'SONAR_TOKEN')]) {
                     sh """
                         mvn sonar:sonar \
                           -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
@@ -69,8 +67,8 @@ pipeline {
 
         stage('Push Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-feriel014', 
-                                                 usernameVariable: 'DOCKER_USER', 
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-feriel014',
+                                                 usernameVariable: 'DOCKER_USER',
                                                  passwordVariable: 'DOCKER_PASS')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh """
@@ -88,12 +86,12 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "Build #${BUILD_NUMBER} terminé avec succès !"
-            echo "Image Docker → https://hub.docker.com/r/${DOCKERHUB_REPO}/tags"
+            echo "Build #${BUILD_NUMBER} réussi !"
+            echo "Docker → https://hub.docker.com/r/${DOCKERHUB_REPO}/tags"
             echo "SonarQube → http://localhost:9000/dashboard?id=${SONAR_PROJECT_KEY}"
         }
         failure {
-            echo "Échec du build #${BUILD_NUMBER} – regarde les logs !"
+            echo "Build #${BUILD_NUMBER} échoué – voir les logs ci-dessus"
         }
     }
 }
