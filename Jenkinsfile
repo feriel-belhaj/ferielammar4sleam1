@@ -4,7 +4,6 @@ pipeline {
     environment {
         DOCKERHUB_REPO     = 'feriel014/student-management'
         IMAGE_TAG          = "${BUILD_NUMBER}"
-
         SONAR_PROJECT_KEY  = 'student-management'
         SONAR_PROJECT_NAME = 'Gestion des Étudiants'
         SONAR_HOST_URL     = 'http://localhost:9000'
@@ -34,16 +33,14 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'projet', variable: 'SONAR_TOKEN')]) {
-                    sh """
-                        mvn sonar:sonar \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.login=${SONAR_TOKEN} \
-                          -Dsonar.sources=src \
-                          -Dsonar.java.binaries=target/classes \
-                          -Dsonar.sourceEncoding=UTF-8
-                    """
+                    sh 'mvn sonar:sonar ' +
+                       '-Dsonar.projectKey=${SONAR_PROJECT_KEY} ' +
+                       '-Dsonar.projectName="${SONAR_PROJECT_NAME}" ' +
+                       '-Dsonar.host.url=${SONAR_HOST_URL} ' +
+                       '-Dsonar.login=${SONAR_TOKEN} ' +
+                       '-Dsonar.sources=src ' +
+                       '-Dsonar.java.binaries=target/classes ' +
+                       '-Dsonar.sourceEncoding=UTF-8'
                 }
             }
         }
@@ -58,10 +55,8 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
-                    docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
-                """
+                sh "docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} ."
+                sh "docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest"
             }
         }
 
@@ -71,10 +66,8 @@ pipeline {
                                                  usernameVariable: 'DOCKER_USER',
                                                  passwordVariable: 'DOCKER_PASS')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh """
-                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                        docker push ${DOCKERHUB_REPO}:latest
-                    """
+                    sh "docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+                    sh "docker push ${DOCKERHUB_REPO}:latest"
                 }
             }
         }
@@ -86,12 +79,9 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "Build #${BUILD_NUMBER} réussi !"
-            echo "Docker → https://hub.docker.com/r/${DOCKERHUB_REPO}/tags"
-            echo "SonarQube → http://localhost:9000/dashboard?id=${SONAR_PROJECT_KEY}"
-        }
-        failure {
-            echo "Build #${BUILD_NUMBER} échoué – voir les logs ci-dessus"
+            echo "Build #${BUILD_NUMBER} terminé avec succès !"
+            echo "Docker : https://hub.docker.com/r/${DOCKERHUB_REPO}/tags"
+            echo "SonarQube : http://localhost:9000/dashboard?id=${SONAR_PROJECT_KEY}"
         }
     }
 }
