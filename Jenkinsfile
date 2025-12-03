@@ -88,4 +88,4 @@ pipeline {
             echo "Oups, il y a eu un souci. Regarde les logs !"
         }
     }
-}
+
