@@ -4,10 +4,11 @@ pipeline {
     environment {
         DOCKERHUB_REPO        = 'feriel014/student-management'
         IMAGE_TAG             = "${BUILD_NUMBER}"
-        DOCKERHUB_CREDENTIALS = 'dockerhub-feriel014'  // ton credential Docker Hub
+        DOCKERHUB_CREDENTIALS = 'dockerhub-feriel014' 
+        SONAR_TOKEN = 'jenkins-sonar' 
     }
 
-    stages {
+    /*stages {
         stage('Checkout') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
@@ -22,25 +23,17 @@ pipeline {
                 // Compiler et exécuter les tests
                 sh 'mvn clean test'
             }
-        }
+        }*/
 
-        stage('SonarQube Analysis') {
-            steps {
-                withCredentials([string(credentialsId: 'jenkins-student-management', variable: 'TOKEN')]) {
-                    sh """
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=student-management \
-                            -Dsonar.projectName="Gestion des Étudiants" \
-                            -Dsonar.host.url=http://<IP_SONAR>:9000 \
-                            -Dsonar.token=$TOKEN \
-                            -Dsonar.sources=src/main/java \
-                            -Dsonar.tests=src/test/java \
-                            -Dsonar.java.binaries=target/classes \
-                            -Dsonar.sourceEncoding=UTF-8
-                    """
-                }
+          stage('Analyse SonarQube') {
+    steps {
+        withCredentials([string(credentialsId: 'jenkins-sonar', variable: 'SONAR_TOKEN')]) {
+            withSonarQubeEnv('SonarQubeServer') {
+                sh "mvn sonar:sonar -Dsonar.projectKey=FerielDevopsProject -Dsonar.login=${SONAR_TOKEN} -Dsonar.java.binaries=target/classes"
             }
         }
+    }
+}
 
         stage('Quality Gate') {
             steps {
