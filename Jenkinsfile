@@ -1,18 +1,19 @@
+
 pipeline {
     agent any
 
     environment {
-        DOCKERHUB_REPO        = 'feriel014/student-management'
-        IMAGE_TAG             = "${BUILD_NUMBER}"
+       DOCKERHUB_REPO = 'feriel014/student-management'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
+        SONAR_TOKEN = credentials('jenkins-sonar')
     }
 
-     stages {
-        stage('Checkout') {
+    stages {
+
+        stage('Récupération Git') {
             steps {
-                echo 'Récupération du code depuis GitHub...'
-                git credentialsId: 'github-feriel',
-                    url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git',
-                    branch: 'main'
+                url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git', branch: 'main'
             }
         }
 
@@ -23,24 +24,46 @@ pipeline {
             }
         }
 
-        stage('Analyse SonarQube') {
+       
+
+     /*   stage('Check Coverage') {
             steps {
-                withCredentials([string(credentialsId: 'jenkins-sonar', variable: 'SONAR_TOKEN')]) {
-                    withSonarQubeEnv('jenkins-sonar') {
-                        sh """
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=student-management \
-                            -Dsonar.login=${SONAR_TOKEN} \
-                            -Dsonar.java.binaries=target/classes
-                        """
+                script {
+                    if (!fileExists('target/site/jacoco/jacoco.xml')) {
+                        error "Rapport JaCoCo non trouvé !"
                     }
+
+                    def coverage = sh(
+                        script: '''
+                            covered=$(xmllint --xpath "sum(//counter[@type='LINE']/@covered)" target/site/jacoco/jacoco.xml)
+                            missed=$(xmllint --xpath "sum(//counter[@type='LINE']/@missed)" target/site/jacoco/jacoco.xml)
+                            echo $((covered*100/(covered+missed)))
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    if (coverage.toInteger() == 0) {
+                        error "Couverture JaCoCo = 0%. Pipeline arrêté."
+                    }
+
+                    echo "Couverture détectée : ${coverage}%"
                 }
             }
         }
-      
+*/
+        stage('Analyse SonarQube') {
+    steps {
+        withCredentials([string(credentialsId: 'jenkins-sonar', variable: 'SONAR_TOKEN')]) {
+            withSonarQubeEnv('SonarQubeServer') {
+                sh "mvn sonar:sonar -Dsonar.projectKey=FatmaDevopsProject -Dsonar.login=${SONAR_TOKEN} -Dsonar.java.binaries=target/classes"
+            }
+        }
+    }
+}
+
+
         stage('Build Docker Image') {
             steps {
-                echo 'Construction de l\'image Docker...'
                 sh """
                     docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
                     docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
@@ -48,33 +71,23 @@ pipeline {
             }
         }
 
-        stage('Push to DockerHub') {
+        stage('Push Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-feriel014',
-                                                 usernameVariable: 'DOCKER_USER',
-                                                 passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh """
-                        docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                        docker push ${DOCKERHUB_REPO}:latest
-                    """
-                }
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                sh """
+                    docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                    docker push ${DOCKERHUB_REPO}:latest
+                """
             }
         }
-    } // <-- closes stages
+    }
 
     post {
         always {
             sh 'docker logout || true'
-            cleanWs()
         }
         success {
-            echo "FÉLICITATIONS ! Tout est bon !!"
-            echo "Docker : https://hub.docker.com/r/${DOCKERHUB_REPO}"
-            echo "SonarQube : http://<IP_SONAR>:9000/dashboard?id=student-management"
-        }
-        failure {
-            echo "Oups, il y a eu un souci. Regarde les logs !"
+            echo "Pipeline terminé avec succès !"
         }
     }
 }
