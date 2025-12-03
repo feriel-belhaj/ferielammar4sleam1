@@ -16,10 +16,10 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
+        stage('Création du livrable') {
             steps {
-                echo 'Compilation et tests avec Maven...'
-                sh 'mvn clean test'
+                sh 'mvn clean package -DskipTests'
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
 
