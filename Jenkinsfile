@@ -26,7 +26,7 @@ pipeline {
         stage('Analyse SonarQube') {
             steps {
                 withCredentials([string(credentialsId: 'jenkins-sonar', variable: 'SONAR_TOKEN')]) {
-                    withSonarQubeEnv('SonarQubeServer') {
+                    withSonarQubeEnv('jenkins-sonar') {
                         sh """
                         mvn sonar:sonar \
                             -Dsonar.projectKey=student-management \
