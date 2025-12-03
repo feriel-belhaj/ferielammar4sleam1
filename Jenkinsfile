@@ -6,7 +6,7 @@ pipeline {
         IMAGE_TAG             = "${BUILD_NUMBER}"
     }
 
-    stages {
+     stages {
         stage('Checkout') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
@@ -37,14 +37,7 @@ pipeline {
                 }
             }
         }
-        stage('Package') {
-            steps {
-                echo 'Création du package Maven...'
-                sh 'mvn clean package'
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-            }
-        }
-
+      
         stage('Build Docker Image') {
             steps {
                 echo 'Construction de l\'image Docker...'
