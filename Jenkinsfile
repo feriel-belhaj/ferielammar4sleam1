@@ -4,15 +4,13 @@ pipeline {
     environment {
         DOCKERHUB_REPO        = 'feriel014/student-management'
         IMAGE_TAG             = "${BUILD_NUMBER}"
-        DOCKERHUB_CREDENTIALS = 'dockerhub-feriel014' 
-        SONAR_TOKEN = 'jenkins-sonar' 
     }
 
-    /*stages {
+    stages {
         stage('Checkout') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
-                git credentialsId: 'github-feriel',  // ton token GitHub
+                git credentialsId: 'github-feriel',
                     url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git',
                     branch: 'main'
             }
@@ -20,20 +18,25 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                // Compiler et exécuter les tests
+                echo 'Compilation et tests avec Maven...'
                 sh 'mvn clean test'
             }
-        }*/
+        }
 
-          stage('Analyse SonarQube') {
-    steps {
-        withCredentials([string(credentialsId: 'jenkins-sonar', variable: 'SONAR_TOKEN')]) {
-            withSonarQubeEnv('SonarQubeServer') {
-                sh "mvn sonar:sonar -Dsonar.projectKey=FerielDevopsProject -Dsonar.login=${SONAR_TOKEN} -Dsonar.java.binaries=target/classes"
+        stage('Analyse SonarQube') {
+            steps {
+                withCredentials([string(credentialsId: 'jenkins-sonar', variable: 'SONAR_TOKEN')]) {
+                    withSonarQubeEnv('SonarQubeServer') {
+                        sh """
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=student-management \
+                            -Dsonar.login=${SONAR_TOKEN} \
+                            -Dsonar.java.binaries=target/classes
+                        """
+                    }
+                }
             }
         }
-    }
-}
 
         stage('Quality Gate') {
             steps {
@@ -45,6 +48,7 @@ pipeline {
 
         stage('Package') {
             steps {
+                echo 'Création du package Maven...'
                 sh 'mvn clean package'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
@@ -52,6 +56,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
+                echo 'Construction de l\'image Docker...'
                 sh """
                     docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
                     docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
@@ -72,7 +77,7 @@ pipeline {
                 }
             }
         }
-    }
+    } // <-- closes stages
 
     post {
         always {
@@ -80,7 +85,7 @@ pipeline {
             cleanWs()
         }
         success {
-            echo " FÉLICITATIONS ! Tout est bon !!"
+            echo "FÉLICITATIONS ! Tout est bon !!"
             echo "Docker : https://hub.docker.com/r/${DOCKERHUB_REPO}"
             echo "SonarQube : http://<IP_SONAR>:9000/dashboard?id=student-management"
         }
@@ -88,4 +93,4 @@ pipeline {
             echo "Oups, il y a eu un souci. Regarde les logs !"
         }
     }
-
+}
