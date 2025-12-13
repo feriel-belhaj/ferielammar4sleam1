@@ -16,18 +16,11 @@ pipeline {
             }
         }
 
-        stage('Tests unitaires') {
-            steps {
-                // Tests ACTIVÉS (obligatoire pour JaCoCo & Sonar)
-                sh 'mvn test'
-            }
-        }
-
-        stage('Analyse Qualité - SonarQube') {
+        stage('Analyse Qualité - SonarQube + Tests + JaCoCo') {
             steps {
                 withSonarQubeEnv('jenkins-sonar') {
                     sh '''
-                        mvn sonar:sonar \
+                        mvn clean verify sonar:sonar \
                         -Dsonar.projectKey=student-management \
                         -Dsonar.projectName=student-management
                     '''
@@ -37,8 +30,7 @@ pipeline {
 
         stage('Quality Gate') {
             steps {
-                // bloque le pipeline si la qualité est mauvaise
-                timeout(time: 2, unit: 'MINUTES') {
+                timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
@@ -46,7 +38,7 @@ pipeline {
 
         stage('Création du livrable') {
             steps {
-                sh 'mvn clean package'
+                sh 'mvn package -DskipTests'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
