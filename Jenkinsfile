@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     environment {
-        // Change ici avec TON pseudo Docker Hub
         DOCKERHUB_REPO = 'feriel014/student-management1'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')  // à créer dans Jenkins
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
     }
 
     stages {
+
         stage('Récupération Git') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
@@ -18,13 +18,35 @@ pipeline {
 
         stage('Tests unitaires') {
             steps {
-                sh 'mvn test -Dmaven.test.skip=true'
+                // Tests ACTIVÉS (obligatoire pour JaCoCo & Sonar)
+                sh 'mvn test'
+            }
+        }
+
+        stage('Analyse Qualité - SonarQube') {
+            steps {
+                withSonarQubeEnv('jenkins-sonar') {
+                    sh '''
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=student-management \
+                        -Dsonar.projectName=student-management
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                // bloque le pipeline si la qualité est mauvaise
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
         stage('Création du livrable') {
             steps {
-                sh 'mvn clean package -Dmaven.test.skip=true'
+                sh 'mvn clean package'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
