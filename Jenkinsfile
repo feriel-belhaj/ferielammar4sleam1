@@ -25,7 +25,6 @@ pipeline {
                         -Dsonar.projectName=student-management
                     '''
                 }
-                // Pas de waitForQualityGate ici - l'analyse continue en arrière-plan
             }
         }
         
@@ -47,11 +46,33 @@ pipeline {
         
         stage('Push Docker Hub') {
             steps {
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-                sh """
-                    docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
-                    docker push ${DOCKERHUB_REPO}:latest
-                """
+                script {
+                    try {
+                        timeout(time: 3, unit: 'MINUTES') {
+                            sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                            sh """
+                                docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
+                                docker push ${DOCKERHUB_REPO}:latest
+                            """
+                            echo "✅ Push Docker Hub réussi !"
+                        }
+                    } catch (Exception e) {
+                        echo "⚠️ Push Docker Hub échoué (problème de connexion)"
+                        echo "📦 Image disponible localement: ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
+            }
+        }
+        
+        stage('Load Image to Minikube') {
+            steps {
+                script {
+                    echo '📦 Chargement de l\'image dans Minikube...'
+                    sh """
+                        minikube image load ${DOCKERHUB_REPO}:${IMAGE_TAG} || echo "Image déjà dans Minikube"
+                    """
+                }
             }
         }
         
@@ -104,11 +125,12 @@ pipeline {
     post {
         always {
             sh 'docker logout || true'
+            sh 'docker image prune -f || true'
         }
         success {
             echo "✅ Pipeline terminé avec succès !"
-            echo "🐳 Image Docker: https://hub.docker.com/r/feriel014/student-management1"
-            echo "📊 Analyse SonarQube disponible sur: http://localhost:9000"
+            echo "🐳 Image Docker locale: ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+            echo "📊 Analyse SonarQube: http://localhost:9000"
             sh """
                 echo "📊 État du cluster Kubernetes:"
                 kubectl get all -n ${KUBE_NAMESPACE} || true
@@ -120,6 +142,10 @@ pipeline {
                 echo "🔍 Logs de debug Kubernetes:"
                 kubectl get events -n ${KUBE_NAMESPACE} --sort-by='.lastTimestamp' || true
             """
+        }
+        unstable {
+            echo "⚠️ Pipeline instable (push Docker Hub échoué)"
+            echo "💡 L'application est déployée avec l'image locale"
         }
     }
 }
