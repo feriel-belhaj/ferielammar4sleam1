@@ -1,36 +1,21 @@
 pipeline {
     agent any
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 4c91008 (kubernities)
     environment {
         DOCKERHUB_REPO = 'feriel014/student-management1'
         IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
-<<<<<<< HEAD
-    }
-
-    stages {
-
-=======
         KUBE_NAMESPACE = 'devops'
     }
     
     stages {
->>>>>>> 4c91008 (kubernities)
         stage('Récupération Git') {
             steps {
                 echo 'Récupération du code depuis GitHub...'
                 git url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git', branch: 'main'
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> 4c91008 (kubernities)
         stage('Analyse Qualité - SonarQube + Tests + JaCoCo') {
             steps {
                 withSonarQubeEnv('jenkins-sonar') {
@@ -42,11 +27,7 @@ pipeline {
                 }
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> 4c91008 (kubernities)
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
@@ -54,22 +35,14 @@ pipeline {
                 }
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> 4c91008 (kubernities)
         stage('Création du livrable') {
             steps {
                 sh 'mvn package -DskipTests'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> 4c91008 (kubernities)
         stage('Build Docker Image') {
             steps {
                 sh """
@@ -78,11 +51,7 @@ pipeline {
                 """
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> 4c91008 (kubernities)
         stage('Push Docker Hub') {
             steps {
                 sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
@@ -92,10 +61,6 @@ pipeline {
                 """
             }
         }
-<<<<<<< HEAD
-    }
-
-=======
         
         stage('Deploy MySQL to Kubernetes') {
             steps {
@@ -144,15 +109,11 @@ pipeline {
         }
     }
     
->>>>>>> 4c91008 (kubernities)
     post {
         always {
             sh 'docker logout || true'
         }
         success {
-<<<<<<< HEAD
-            echo "Image poussée avec succès ! https://hub.docker.com/r/feriel014/student-management1"
-=======
             echo "✅ Pipeline terminé avec succès !"
             echo "🐳 Image Docker: https://hub.docker.com/r/feriel014/student-management1"
             sh """
@@ -166,7 +127,6 @@ pipeline {
                 echo "🔍 Logs de debug Kubernetes:"
                 kubectl get events -n ${KUBE_NAMESPACE} --sort-by='.lastTimestamp' || true
             """
->>>>>>> 4c91008 (kubernities)
         }
     }
 }
