@@ -40,7 +40,7 @@ spec:
     spec:
       containers:
       - name: spring-app
-        image: ameni2025/student-management:latest
+        image: feriel014/student-management1:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8089
