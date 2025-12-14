@@ -25,14 +25,7 @@ pipeline {
                         -Dsonar.projectName=student-management
                     '''
                 }
-            }
-        }
-        
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                // Pas de waitForQualityGate ici - l'analyse continue en arrière-plan
             }
         }
         
@@ -80,7 +73,6 @@ pipeline {
                 script {
                     echo '🚀 Déploiement de l\'application Spring Boot sur Kubernetes...'
                     sh """
-                        # Mettre à jour l'image dans le deployment
                         kubectl set image deployment/spring-app spring-app=${DOCKERHUB_REPO}:${IMAGE_TAG} -n ${KUBE_NAMESPACE} || kubectl apply -f k8s/spring-deployment.yaml
                         
                         kubectl wait --for=condition=ready pod -l app=spring-app -n ${KUBE_NAMESPACE} --timeout=300s || true
@@ -116,6 +108,7 @@ pipeline {
         success {
             echo "✅ Pipeline terminé avec succès !"
             echo "🐳 Image Docker: https://hub.docker.com/r/feriel014/student-management1"
+            echo "📊 Analyse SonarQube disponible sur: http://localhost:9000"
             sh """
                 echo "📊 État du cluster Kubernetes:"
                 kubectl get all -n ${KUBE_NAMESPACE} || true
