@@ -1,13 +1,13 @@
 pipeline {
     agent any
-    
+   
     environment {
         DOCKERHUB_REPO = 'feriel014/student-management1'
         IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-feriel014')
         KUBE_NAMESPACE = 'devops'
     }
-    
+   
     stages {
         stage('Récupération Git') {
             steps {
@@ -15,7 +15,7 @@ pipeline {
                 git url: 'https://github.com/feriel-belhaj/ferielammar4sleam1.git', branch: 'main'
             }
         }
-        
+       
         stage('Analyse Qualité - SonarQube + Tests + JaCoCo') {
             steps {
                 withSonarQubeEnv('jenkins-sonar') {
@@ -27,29 +27,28 @@ pipeline {
                 }
             }
         }
-        
+       
         stage('Création du livrable') {
             steps {
                 sh 'mvn package -DskipTests'
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
-        
+       
         stage('Build Docker Image') {
             steps {
                 sh """
-                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} .
-                    docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest
+                    docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} -t ${DOCKERHUB_REPO}:latest .
                 """
             }
         }
-        
+       
         stage('Push Docker Hub') {
             steps {
                 script {
                     try {
-                        timeout(time: 3, unit: 'MINUTES') {
-                            sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+                        timeout(time: 15, unit: 'MINUTES') {  // ← Augmenté à 15 minutes
+                            sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
                             sh """
                                 docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}
                                 docker push ${DOCKERHUB_REPO}:latest
@@ -57,14 +56,14 @@ pipeline {
                             echo "✅ Push Docker Hub réussi !"
                         }
                     } catch (Exception e) {
-                        echo "⚠️ Push Docker Hub échoué (problème de connexion)"
+                        echo "⚠️ Push Docker Hub échoué ou timeout (connexion lente ou image lourde)"
                         echo "📦 Image disponible localement: ${DOCKERHUB_REPO}:${IMAGE_TAG}"
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
             }
         }
-        
+       
         stage('Load Image to Minikube') {
             steps {
                 script {
@@ -75,7 +74,7 @@ pipeline {
                 }
             }
         }
-        
+       
         stage('Deploy MySQL to Kubernetes') {
             steps {
                 script {
@@ -88,16 +87,16 @@ pipeline {
                 }
             }
         }
-        
+       
         stage('Deploy Spring App to Kubernetes') {
             steps {
                 script {
                     echo '🚀 Déploiement de l\'application Spring Boot sur Kubernetes...'
                     sh """
                         kubectl set image deployment/spring-app spring-app=${DOCKERHUB_REPO}:${IMAGE_TAG} -n ${KUBE_NAMESPACE} || kubectl apply -f k8s/spring-deployment.yaml
-                        
+                       
                         kubectl wait --for=condition=ready pod -l app=spring-app -n ${KUBE_NAMESPACE} --timeout=300s || true
-                        
+                       
                         kubectl get deployments -n ${KUBE_NAMESPACE}
                         kubectl get pods -n ${KUBE_NAMESPACE}
                         kubectl get services -n ${KUBE_NAMESPACE}
@@ -105,7 +104,7 @@ pipeline {
                 }
             }
         }
-        
+       
         stage('Verify Deployment') {
             steps {
                 script {
@@ -113,7 +112,7 @@ pipeline {
                     sh """
                         echo "🌐 URL du service:"
                         minikube service spring-service -n ${KUBE_NAMESPACE} --url || true
-                        
+                       
                         echo "📋 Logs des pods Spring Boot:"
                         kubectl logs -l app=spring-app -n ${KUBE_NAMESPACE} --tail=50 || true
                     """
@@ -121,7 +120,7 @@ pipeline {
             }
         }
     }
-    
+   
     post {
         always {
             sh 'docker logout || true'
@@ -129,7 +128,7 @@ pipeline {
         }
         success {
             echo "✅ Pipeline terminé avec succès !"
-            echo "🐳 Image Docker locale: ${DOCKERHUB_REPO}:${IMAGE_TAG}"
+            echo "🐳 Image Docker: ${DOCKERHUB_REPO}:${IMAGE_TAG} (et latest)"
             echo "📊 Analyse SonarQube: http://localhost:9000"
             sh """
                 echo "📊 État du cluster Kubernetes:"
@@ -144,8 +143,8 @@ pipeline {
             """
         }
         unstable {
-            echo "⚠️ Pipeline instable (push Docker Hub échoué)"
-            echo "💡 L'application est déployée avec l'image locale"
+            echo "⚠️ Pipeline instable (probablement push Docker Hub échoué)"
+            echo "💡 L'application est quand même déployée avec l'image locale dans Minikube"
         }
     }
 }
