@@ -38,8 +38,8 @@ spec:
     spec:
       containers:
       - name: spring-app
-        image: feriel014/student-management1:21
-        imagePullPolicy: Never
+        image: feriel014/student-management1:22
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8089
         env:
